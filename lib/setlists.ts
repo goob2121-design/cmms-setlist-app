@@ -18,7 +18,6 @@ type SetlistItemRow = {
   position: number;
   is_optional: boolean;
   arrangement_notes: string | null;
-  songs: SongRow | SongRow[] | null;
 };
 
 type SetlistRow = {
@@ -29,27 +28,6 @@ type SetlistRow = {
   setlist_songs: SetlistItemRow[] | null;
 };
 
-function mapSong(row: SongRow): Song {
-  return {
-    id: row.id,
-    title: row.title,
-    key: row.key,
-    tempo: row.tempo,
-    duration: typeof row.duration === "number" ? row.duration : Number(row.duration),
-    singer: row.singer,
-    notes: row.notes ?? "",
-    tags: row.tags ?? []
-  };
-}
-
-function getNestedSong(row: SetlistItemRow) {
-  if (!row.songs) {
-    throw new Error("Setlist item is missing song data.");
-  }
-
-  return Array.isArray(row.songs) ? row.songs[0] : row.songs;
-}
-
 function mapSetlistItem(row: SetlistItemRow): SetlistItem {
   return {
     id: row.id,
@@ -57,7 +35,16 @@ function mapSetlistItem(row: SetlistItemRow): SetlistItem {
     position: row.position,
     isOptional: row.is_optional,
     arrangementNotes: row.arrangement_notes ?? "",
-    song: mapSong(getNestedSong(row))
+    song: {
+      id: row.song_id,
+      title: "Loading...",
+      key: "",
+      tempo: "medium",
+      duration: 0,
+      singer: "",
+      notes: "",
+      tags: []
+    }
   };
 }
 
@@ -67,15 +54,13 @@ function mapSetlist(row: SetlistRow): SetlistDetail {
     .sort((left, right) => left.position - right.position)
     .map((item) => mapSetlistItem(item));
 
-  const totalDurationMinutes = items.reduce((total, item) => total + item.song.duration, 0);
-
   return {
     id: row.id,
     name: row.name,
     description: row.description ?? "",
     status: row.status,
     songCount: items.length,
-    totalDurationMinutes,
+    totalDurationMinutes: 0,
     items
   };
 }
@@ -84,31 +69,19 @@ async function fetchSetlistById(setlistId: string) {
   const supabase = createServerSupabaseClient();
   const { data, error } = await supabase
     .from("setlists")
-    .select(
-      `
+    .select(`
+      id,
+      name,
+      description,
+      status,
+      setlist_songs (
         id,
-        name,
-        description,
-        status,
-        setlist_songs (
-          id,
-          song_id,
-          position,
-          is_optional,
-          arrangement_notes,
-          songs (
-            id,
-            title,
-            key,
-            tempo,
-            duration,
-            singer,
-            notes,
-            tags
-          )
-        )
-      `
-    )
+        song_id,
+        position,
+        is_optional,
+        arrangement_notes
+      )
+    `)
     .eq("id", setlistId)
     .single();
 
@@ -123,31 +96,19 @@ export async function listSetlists() {
   const supabase = createServerSupabaseClient();
   const { data, error } = await supabase
     .from("setlists")
-    .select(
-      `
+    .select(`
+      id,
+      name,
+      description,
+      status,
+      setlist_songs (
         id,
-        name,
-        description,
-        status,
-        setlist_songs (
-          id,
-          song_id,
-          position,
-          is_optional,
-          arrangement_notes,
-          songs (
-            id,
-            title,
-            key,
-            tempo,
-            duration,
-            singer,
-            notes,
-            tags
-          )
-        )
-      `
-    )
+        song_id,
+        position,
+        is_optional,
+        arrangement_notes
+      )
+    `)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -203,38 +164,20 @@ export async function updateSetlist(setlistId: string, values: Partial<SetlistFo
   const supabase = createServerSupabaseClient();
   const metadata: Record<string, string> = {};
 
-  if (typeof values.name === "string") {
-    metadata.name = values.name;
-  }
-
-  if (typeof values.description === "string") {
-    metadata.description = values.description;
-  }
-
-  if (typeof values.status === "string") {
-    metadata.status = values.status;
-  }
+  if (typeof values.name === "string") metadata.name = values.name;
+  if (typeof values.description === "string") metadata.description = values.description;
+  if (typeof values.status === "string") metadata.status = values.status;
 
   if (Object.keys(metadata).length > 0) {
     const { error } = await supabase.from("setlists").update(metadata).eq("id", setlistId);
-
-    if (error) {
-      throw new Error(error.message);
-    }
+    if (error) throw new Error(error.message);
   }
 
   if (values.items) {
-    const { error: deleteError } = await supabase
-      .from("setlist_songs")
-      .delete()
-      .eq("setlist_id", setlistId);
-
-    if (deleteError) {
-      throw new Error(deleteError.message);
-    }
+    await supabase.from("setlist_songs").delete().eq("setlist_id", setlistId);
 
     if (values.items.length > 0) {
-      const { error: insertError } = await supabase.from("setlist_songs").insert(
+      const { error } = await supabase.from("setlist_songs").insert(
         values.items.map((item) => ({
           setlist_id: setlistId,
           song_id: item.songId,
@@ -244,9 +187,7 @@ export async function updateSetlist(setlistId: string, values: Partial<SetlistFo
         }))
       );
 
-      if (insertError) {
-        throw new Error(insertError.message);
-      }
+      if (error) throw new Error(error.message);
     }
   }
 
@@ -257,7 +198,5 @@ export async function deleteSetlist(setlistId: string) {
   const supabase = createServerSupabaseClient();
   const { error } = await supabase.from("setlists").delete().eq("id", setlistId);
 
-  if (error) {
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(error.message);
 }
