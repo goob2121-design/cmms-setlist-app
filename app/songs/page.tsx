@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { SongLibraryManager } from "@/components/song-library-manager";
 import { PageHeader } from "@/components/page-header";
 import { listSongs } from "@/lib/songs";
