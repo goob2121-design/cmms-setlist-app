@@ -56,7 +56,10 @@ async function mapSetlist(row: SetlistRow): Promise<SetlistDetail> {
     name: row.name,
     description: row.description ?? "",
     status: row.status,
-    songCount: items.length,
+
+    // ✅ FIXED LINE HERE
+    songCount: row.setlist_songs?.length ?? 0,
+
     totalDurationMinutes,
     items
   };
@@ -139,10 +142,13 @@ export async function createSetlist(values: SetlistFormValues) {
 
   if (values.items.length > 0) {
     const { error: itemsError } = await supabase.from("setlist_songs").insert(
-      values.items.map((item) => ({
+      values.items.map((item, index) => ({
         setlist_id: setlistId,
         song_id: item.songId,
-        position: item.position,
+
+        // 🔥 ALSO FIXED (prevents future issues)
+        position: index,
+
         is_optional: item.isOptional ?? false,
         arrangement_notes: item.arrangementNotes ?? ""
       }))
@@ -175,10 +181,13 @@ export async function updateSetlist(setlistId: string, values: Partial<SetlistFo
 
     if (values.items.length > 0) {
       const { error } = await supabase.from("setlist_songs").insert(
-        values.items.map((item) => ({
+        values.items.map((item, index) => ({
           setlist_id: setlistId,
           song_id: item.songId,
-          position: item.position,
+
+          // 🔥 ALSO FIXED HERE
+          position: index,
+
           is_optional: item.isOptional ?? false,
           arrangement_notes: item.arrangementNotes ?? ""
         }))
