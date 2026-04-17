@@ -14,7 +14,7 @@ export function SectionCard({ title, description, href, ctaLabel }: SectionCardP
         <h2>{title}</h2>
         <p>{description}</p>
       </div>
-      <Link href={href} className="secondary-button">
+      <Link href={href as any} className="secondary-button">
         {ctaLabel}
       </Link>
     </article>
