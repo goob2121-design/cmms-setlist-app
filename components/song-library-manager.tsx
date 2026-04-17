@@ -116,6 +116,7 @@ export function SongLibraryManager({ initialSongs }: SongLibraryManagerProps) {
     setMessage(null);
   }
 
+  // 🔥 FIXED FUNCTION
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSubmitting(true);
@@ -141,15 +142,12 @@ export function SongLibraryManager({ initialSongs }: SongLibraryManagerProps) {
         throw new Error(responsePayload.error ?? "Unable to save song.");
       }
 
+      // ✅ THIS IS THE KEY FIX
+      await refreshSongs();
+
       if (editingSongId) {
-        setSongs((current) =>
-          current.map((song) => (song.id === responsePayload.id ? responsePayload : song))
-        );
         setMessage("Song updated.");
       } else {
-        setSongs((current) =>
-          [...current, responsePayload].sort((left, right) => left.title.localeCompare(right.title))
-        );
         setMessage("Song added.");
       }
 
@@ -183,7 +181,8 @@ export function SongLibraryManager({ initialSongs }: SongLibraryManagerProps) {
         throw new Error(payload.error ?? "Unable to delete song.");
       }
 
-      setSongs((current) => current.filter((song) => song.id !== songId));
+      // also refresh after delete
+      await refreshSongs();
 
       if (editingSongId === songId) {
         resetForm();
@@ -346,9 +345,7 @@ export function SongLibraryManager({ initialSongs }: SongLibraryManagerProps) {
               ) : (
                 songs.map((song) => (
                   <tr key={song.id}>
-                    <td>
-                      <strong>{song.title}</strong>
-                    </td>
+                    <td><strong>{song.title}</strong></td>
                     <td>{song.key}</td>
                     <td className="capitalize-cell">{song.tempo}</td>
                     <td>{song.duration} min</td>
