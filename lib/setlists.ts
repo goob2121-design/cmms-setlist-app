@@ -44,7 +44,12 @@ async function mapSetlist(row: SetlistRow): Promise<SetlistDetail> {
   const songs = await listSongs();
   const songsMap = Object.fromEntries(songs.map((s) => [s.id, s]));
 
-  const items = (row.setlist_songs ?? [])
+  // 🔥 REMOVE duplicates (THIS IS THE REAL FIX)
+  const uniqueItems = Array.from(
+    new Map((row.setlist_songs ?? []).map(item => [item.id, item])).values()
+  );
+
+  const items = uniqueItems
     .slice()
     .sort((a, b) => a.position - b.position)
     .map((item) => mapSetlistItem(item, songsMap));
@@ -57,8 +62,8 @@ async function mapSetlist(row: SetlistRow): Promise<SetlistDetail> {
     description: row.description ?? "",
     status: row.status,
 
-    // ✅ FIXED LINE HERE
-    songCount: row.setlist_songs?.length ?? 0,
+    // ✅ NOW ALWAYS CORRECT
+    songCount: items.length,
 
     totalDurationMinutes,
     items
@@ -145,10 +150,7 @@ export async function createSetlist(values: SetlistFormValues) {
       values.items.map((item, index) => ({
         setlist_id: setlistId,
         song_id: item.songId,
-
-        // 🔥 ALSO FIXED (prevents future issues)
-        position: index,
-
+        position: index, // 🔥 ALWAYS CLEAN ORDER
         is_optional: item.isOptional ?? false,
         arrangement_notes: item.arrangementNotes ?? ""
       }))
@@ -184,10 +186,7 @@ export async function updateSetlist(setlistId: string, values: Partial<SetlistFo
         values.items.map((item, index) => ({
           setlist_id: setlistId,
           song_id: item.songId,
-
-          // 🔥 ALSO FIXED HERE
-          position: index,
-
+          position: index, // 🔥 ALWAYS CLEAN
           is_optional: item.isOptional ?? false,
           arrangement_notes: item.arrangementNotes ?? ""
         }))
