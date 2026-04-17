@@ -21,7 +21,7 @@ export function ShellNav() {
 
       <div className="nav-links">
         {navItems.map(({ href, label, icon: Icon }) => (
-          <Link key={href} href={href} className="nav-link">
+          <Link key={href} href={href as any} className="nav-link">
             <Icon size={18} />
             <span>{label}</span>
           </Link>
