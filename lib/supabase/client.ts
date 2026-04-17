@@ -1,3 +1,5 @@
+console.log("ENV TEST:", process.env.SUPABASE_URL);
+
 import { createClient } from "@supabase/supabase-js";
 
 let browserClient: ReturnType<typeof createClient> | null = null;
