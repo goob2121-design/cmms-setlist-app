@@ -1,16 +1,6 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { listSongs } from "@/lib/songs";
 import type { SetlistDetail, SetlistFormValues, SetlistItem, SetlistSummary, Song } from "@/lib/types";
-
-type SongRow = {
-  id: string;
-  title: string;
-  key: string;
-  tempo: Song["tempo"];
-  duration: number | string;
-  singer: string;
-  notes: string | null;
-  tags: string[] | null;
-};
 
 type SetlistItemRow = {
   id: string;
@@ -28,16 +18,18 @@ type SetlistRow = {
   setlist_songs: SetlistItemRow[] | null;
 };
 
-function mapSetlistItem(row: SetlistItemRow): SetlistItem {
+function mapSetlistItem(row: SetlistItemRow, songsMap: Record<string, Song>): SetlistItem {
+  const song = songsMap[row.song_id];
+
   return {
     id: row.id,
     songId: row.song_id,
     position: row.position,
     isOptional: row.is_optional,
     arrangementNotes: row.arrangement_notes ?? "",
-    song: {
+    song: song ?? {
       id: row.song_id,
-      title: "Loading...",
+      title: "Unknown Song",
       key: "",
       tempo: "medium",
       duration: 0,
@@ -48,11 +40,16 @@ function mapSetlistItem(row: SetlistItemRow): SetlistItem {
   };
 }
 
-function mapSetlist(row: SetlistRow): SetlistDetail {
+async function mapSetlist(row: SetlistRow): Promise<SetlistDetail> {
+  const songs = await listSongs();
+  const songsMap = Object.fromEntries(songs.map((s) => [s.id, s]));
+
   const items = (row.setlist_songs ?? [])
     .slice()
-    .sort((left, right) => left.position - right.position)
-    .map((item) => mapSetlistItem(item));
+    .sort((a, b) => a.position - b.position)
+    .map((item) => mapSetlistItem(item, songsMap));
+
+  const totalDurationMinutes = items.reduce((total, item) => total + item.song.duration, 0);
 
   return {
     id: row.id,
@@ -60,7 +57,7 @@ function mapSetlist(row: SetlistRow): SetlistDetail {
     description: row.description ?? "",
     status: row.status,
     songCount: items.length,
-    totalDurationMinutes: 0,
+    totalDurationMinutes,
     items
   };
 }
@@ -115,7 +112,7 @@ export async function listSetlists() {
     throw new Error(error.message);
   }
 
-  return (data as SetlistRow[] | null)?.map((row) => mapSetlist(row)) ?? [];
+  return await Promise.all((data as SetlistRow[] | null)?.map((row) => mapSetlist(row)) ?? []);
 }
 
 export async function getSetlist(setlistId: string) {
