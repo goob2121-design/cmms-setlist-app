@@ -26,7 +26,7 @@ type SetlistRow = {
   name: string;
   description: string | null;
   status: SetlistSummary["status"];
-  setlist_items: SetlistItemRow[] | null;
+  setlist_songs: SetlistItemRow[] | null;
 };
 
 function mapSong(row: SongRow): Song {
@@ -62,7 +62,7 @@ function mapSetlistItem(row: SetlistItemRow): SetlistItem {
 }
 
 function mapSetlist(row: SetlistRow): SetlistDetail {
-  const items = (row.setlist_items ?? [])
+  const items = (row.setlist_songs ?? [])
     .slice()
     .sort((left, right) => left.position - right.position)
     .map((item) => mapSetlistItem(item));
@@ -90,7 +90,7 @@ async function fetchSetlistById(setlistId: string) {
         name,
         description,
         status,
-        setlist_items (
+        setlist_songs (
           id,
           song_id,
           position,
@@ -129,7 +129,7 @@ export async function listSetlists() {
         name,
         description,
         status,
-        setlist_items (
+        setlist_songs (
           id,
           song_id,
           position,
@@ -180,7 +180,7 @@ export async function createSetlist(values: SetlistFormValues) {
   const setlistId = (data as { id: string }).id;
 
   if (values.items.length > 0) {
-    const { error: itemsError } = await supabase.from("setlist_items").insert(
+    const { error: itemsError } = await supabase.from("setlist_songs").insert(
       values.items.map((item) => ({
         setlist_id: setlistId,
         song_id: item.songId,
@@ -225,7 +225,7 @@ export async function updateSetlist(setlistId: string, values: Partial<SetlistFo
 
   if (values.items) {
     const { error: deleteError } = await supabase
-      .from("setlist_items")
+      .from("setlist_songs")
       .delete()
       .eq("setlist_id", setlistId);
 
@@ -234,7 +234,7 @@ export async function updateSetlist(setlistId: string, values: Partial<SetlistFo
     }
 
     if (values.items.length > 0) {
-      const { error: insertError } = await supabase.from("setlist_items").insert(
+      const { error: insertError } = await supabase.from("setlist_songs").insert(
         values.items.map((item) => ({
           setlist_id: setlistId,
           song_id: item.songId,
