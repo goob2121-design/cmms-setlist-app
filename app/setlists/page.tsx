@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { SetlistBuilder } from "@/components/setlist-builder";
 import { PageHeader } from "@/components/page-header";
 import { listSetlists } from "@/lib/setlists";
